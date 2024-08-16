@@ -3,18 +3,22 @@ import Loader from "./Loader";
 import '../styles/chatBot.css';
 
 const ChatBot = (props) => {
-    const { chatPrompt } = props;
+    const { chatPrompt, flightData } = props;  // flightData를 받아옴
     const [loading, setLoading] = useState(false);
-    const [replies, setReplies] = useState([chatPrompt]);
-    const [userMessage, setUserMessage] = useState('');  // 입력한 메시지를 별도로 관리
+    const [replies, setReplies] = useState([]);
+    const [userMessage, setUserMessage] = useState('');
 
     useEffect(() => {
+        console.log("chatPrompt:", chatPrompt); // 현재 chatPrompt 출력
+        console.log("flightData:", flightData); // flightData가 제대로 넘어오는지 확인
+    
         if (chatPrompt) {
             setReplies(prevReplies => [...prevReplies, chatPrompt]);
         }
-    }, [chatPrompt]);
+    }, [chatPrompt, flightData]);
+    
 
-    const handleSubmit = async () => {  // handleSubmit 함수를 ChatBot 컴포넌트 내부로 이동
+    const handleSubmit = async () => {
         if (!userMessage.trim()) return;
 
         setLoading(true);
@@ -28,9 +32,11 @@ const ChatBot = (props) => {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify({ message: userMessage }),
+                body: JSON.stringify({
+                    message: userMessage,
+                    flightData: flightData  // 사용자 메시지와 함께 flightData도 보냄
+                }),
             });
-
             const result = await response.json();
             setReplies(prevReplies => [...prevReplies, result.response]);
         } catch (error) {
@@ -62,7 +68,7 @@ const ChatBot = (props) => {
                         className="message-input"
                         placeholder="메시지"
                         value={userMessage}
-                        onChange={(e) => setUserMessage(e.target.value)}  // 입력된 메시지를 상태에 저장
+                        onChange={(e) => setUserMessage(e.target.value)}
                     />
                     <button className="ui-btn" onClick={handleSubmit}>
                         <span>입력</span>

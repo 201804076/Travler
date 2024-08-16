@@ -1,3 +1,4 @@
+# backend.py
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,9 +14,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-origins = [
-    "http://localhost:3000",
-]
+origins = ["http://localhost:3000"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,18 +25,12 @@ app.add_middleware(
 )
 
 # Amadeus 및 OpenAI API 키 설정
-amadeus_client_id = "fe3si2AT8QusGNTAxDgxA7WXerqJc5b5"
-amadeus_client_secret = "0RVDy7zAUaqrCl55"
-openai_api_key = "sk-cAhJUzH84yjULvNihOe0meYXsRKzM08qhApWayPY24T3BlbkFJKI6DVVqvbtyVI59_Dwcdwr-K08WD8JgTYfWHeZRX0A"
-
-# Amadeus 클라이언트 초기화
 amadeus = Client(
-    client_id=amadeus_client_id,
-    client_secret=amadeus_client_secret
+    client_id="fe3si2AT8QusGNTAxDgxA7WXerqJc5b5",
+    client_secret="0RVDy7zAUaqrCl55"
 )
 
-# OpenAI 클라이언트 초기화
-client = OpenAI(api_key=openai_api_key)
+client = OpenAI(api_key="sk-cAhJUzH84yjULvNihOe0meYXsRKzM08qhApWayPY24T3BlbkFJKI6DVVqvbtyVI59_Dwcdwr-K08WD8JgTYfWHeZRX0A")
 
 # 항공편 검색 요청 형식을 정의하는 Pydantic 모델
 class FlightSearchRequest(BaseModel):
@@ -47,7 +40,6 @@ class FlightSearchRequest(BaseModel):
     returnDate: str = None
     adults: int = 1
 
-# 챗봇 메시지 형식을 정의하는 Pydantic 모델
 class ChatRequest(BaseModel):
     message: str
 
@@ -55,18 +47,9 @@ messages = [
     {"role": "system", "content": "You are a helpful Travel Guide, and only use Korean."}
 ]
 
-# 환율 정보를 가져오는 함수
-def get_exchange_rate():
-    url = "https://api.exchangerate-api.com/v4/latest/USD"
-    response = requests.get(url)
-    response.raise_for_status()
-    rates = response.json()["rates"]
-    return rates["KRW"]
-
 @app.post("/flights")
 async def search_flights(request: FlightSearchRequest):
     try:
-        # departureDate가 비어 있거나 올바르지 않은 경우 처리
         if not request.departureDate or not re.match(r'\d{4}-\d{2}-\d{2}', request.departureDate):
             logger.error(f"Invalid departureDate format: {request.departureDate}")
             raise HTTPException(status_code=400, detail="departureDate는 YYYY-MM-DD 형식의 필수 입력 값입니다.")
@@ -107,18 +90,26 @@ async def search_flights(request: FlightSearchRequest):
 async def root():
     return {"message": "Hello, World!"}
 
+
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     user_message = request.message
+    flight_data = request.flightData if "flightData" in request else None
+    logger.info(f"User message: {user_message}")  # 추가된 로그
+    logger.info(f"Flight data received: {flight_data}")  # 추가된 로그
+
     messages.append({"role": "user", "content": user_message})
     
+    if flight_data:
+        # flight_data를 활용해 추가 정보를 제공
+        messages.append({"role": "system", "content": f"현재 항공편 정보: {len(flight_data)}개의 항공편이 있습니다."})
+
     try:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages
         )
 
-        # 여기서 'message' 객체의 속성에 접근할 때 인덱싱을 피하고 속성으로 접근.
         assistant_message = response.choices[0].message.content
         messages.append({"role": "assistant", "content": assistant_message})
         return {"response": assistant_message}
